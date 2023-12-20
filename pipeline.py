@@ -67,19 +67,27 @@ for index, ship in ships_around_ports.iterrows():
         
 # Convert lists to strings
 ships['ports_in_range_indexes'] = ships_around_ports['ports_in_range_indexes'].apply(lambda x: str(x))        
-
-ports_emissions = pd.read_sql_query("
-    SELECT s.closest_port, s.continent, SUM(s.E_CO2_kg) AS total_E_CO2_kg, p.LATITUDE, p.LONGITUDE
-    FROM ships s
-    LEFT JOIN ports p ON s.closest_port = p.PORT_NAME
-    WHERE s.closest_port IS NOT NULL
-    GROUP BY s.closest_port
-", con)
         
 # Load
 con = sqlite3.connect("dwh/db")
 
 
-ships.to_sql('ships', con, if_exists='replace', index=False)
+ships.to_sql('ships', con, if_exists='replace')
 ports.to_sql("ports", con, if_exists="replace")
-ports_emissions.to_sql("ports_emissions", con, if_exists='replace')
+
+
+# I will prepare data for visualisation with a SQL query and load another table
+ports_emissions_query = """
+    SELECT s.closest_port, s.continent, SUM(s.E_CO2_kg) AS total_E_CO2_kg, p.LATITUDE, p.LONGITUDE
+    FROM ships s
+    LEFT JOIN ports p ON s.closest_port = p.PORT_NAME
+    WHERE s.closest_port IS NOT NULL
+    GROUP BY s.closest_port
+"""
+ports_emissions = pd.read_sql_query(ports_emissions_query, con)
+
+# Load ports_emissions into the database
+ports_emissions.to_sql('ports_emissions', con, if_exists='replace', index=False)
+
+# Close the database connection
+con.close()
